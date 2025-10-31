@@ -30,7 +30,7 @@ pipeline {
 
         stage('Auth to GCP Artifact Registry') {
             steps {
-                withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                withCredentials([file(credentialsId: 'GCP_CREDENTIALS', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
                     sh '''
                     cat $GOOGLE_APPLICATION_CREDENTIALS | docker login -u _json_key --password-stdin https://$REGISTRY_URL
                     '''
