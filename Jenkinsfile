@@ -5,6 +5,7 @@ pipeline {
     }
 
     environment {
+        GCP_CREDENTIALS = credentials('gcp-key')
         PROJECT_ID     = "fluted-factor-438905-d2"
         REGION         = "us-west1"
         REPO           = "java-hello-repo"
