@@ -51,7 +51,7 @@ pipeline {
                 echo "Image pushed"
                 '''
             }
-        }*/
+        }
         stage('Connect to GKE') {
             steps {
                 withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
