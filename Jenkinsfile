@@ -26,11 +26,11 @@ pipeline {
             }
         }
 
-        /*stage('Build Docker Image') {
+        stage('Build Docker Image') {
             steps {
                 sh "docker build -t ${FULL_IMAGE} ."
             }
-        }*/
+        }
 
         stage('Auth to GCP Artifact Registry') {
             steps {
@@ -43,7 +43,7 @@ pipeline {
             }
         }
 
-        /*stage('Push to Artifact Registry') {
+        stage('Push to Artifact Registry') {
             steps {
                 sh "
                 docker tag ${FULL_IMAGE} ${REGISTRY_URL}/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:latest
