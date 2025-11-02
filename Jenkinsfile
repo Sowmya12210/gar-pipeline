@@ -45,7 +45,9 @@ pipeline {
 
         /*stage('Push to Artifact Registry') {
             steps {
-                sh "docker push ${FULL_IMAGE}"
+                sh "
+                docker tag ${FULL_IMAGE} ${REGISTRY_URL}/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:latest
+                docker push ${FULL_IMAGE}"
                 echo "Image pushed"
             }
         }*/
