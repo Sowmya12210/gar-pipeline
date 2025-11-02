@@ -67,7 +67,7 @@ pipeline {
             steps {
                 sh '''
                     cp deployment/deployment.yaml deployment/deployment-temp.yaml
-                    sed -i 's|REPLACE_IMAGE|${FULL_IMAGE}|g' deployment/deployment-temp.yaml
+                    sed -i 's|REPLACE_IMAGE|$FULL_IMAGE|g' deployment/deployment-temp.yaml
                 '''
             }
         }
