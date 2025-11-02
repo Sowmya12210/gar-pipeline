@@ -26,11 +26,11 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        /*stage('Build Docker Image') {
             steps {
                 sh "docker build -t ${FULL_IMAGE} ."
             }
-        }
+        }*/
 
         stage('Auth to GCP Artifact Registry') {
             steps {
@@ -43,12 +43,12 @@ pipeline {
             }
         }
 
-        stage('Push to Artifact Registry') {
+        /*stage('Push to Artifact Registry') {
             steps {
                 sh "docker push ${FULL_IMAGE}"
                 echo "Image pushed"
             }
-        }
+        }*/
         stage('Connect to GKE') {
             steps {
                 withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
