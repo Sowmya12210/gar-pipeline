@@ -47,7 +47,7 @@ pipeline {
             steps {
                 sh '''
                 docker tag ${FULL_IMAGE} ${REGISTRY_URL}/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:latest
-                docker push ${FULL_IMAGE}"
+                docker push ${FULL_IMAGE}
                 echo "Image pushed"
                 '''
             }
