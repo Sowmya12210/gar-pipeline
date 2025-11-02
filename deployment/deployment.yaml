@@ -15,5 +15,6 @@ spec:
       containers:
       - name: java-app-container
         image: REPLACE_IMAGE
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
