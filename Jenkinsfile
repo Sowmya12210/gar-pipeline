@@ -55,20 +55,22 @@ pipeline {
         stage('Connect to GKE') {
             steps {
                 withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                    sh '''
+                    sh """
                         gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
                         gcloud container clusters get-credentials jenkins-deploy-1 --region us-west1 --project fluted-factor-438905-d2
-                    '''
+                    """
                     }
             }
         }
 
         stage('Prepare Deployment File') {
             steps {
-                sh '''
+                sh """
                     cp deployment/deployment.yaml deployment/deployment-temp.yaml
                     sed -i "s|REPLACE_IMAGE|${FULL_IMAGE}|g" deployment/deployment-temp.yaml
-                '''
+                    grep -R "image" deployment/deployment-temp.yaml
+                    echo "Using Image: ${FULL_IMAGE}"
+                    """
             }
         }
 
