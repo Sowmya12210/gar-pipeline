@@ -45,10 +45,11 @@ pipeline {
 
         stage('Push to Artifact Registry') {
             steps {
-                sh "
+                sh '''
                 docker tag ${FULL_IMAGE} ${REGISTRY_URL}/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:latest
                 docker push ${FULL_IMAGE}"
                 echo "Image pushed"
+                '''
             }
         }*/
         stage('Connect to GKE') {
