@@ -41,6 +41,7 @@ pipeline {
                 }
                 echo "Auth successful"
             }
+        }
     
         stage('Push to Artifact Registry') {
             steps {
