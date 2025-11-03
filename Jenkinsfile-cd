@@ -37,9 +37,11 @@ pipeline {
                 }
 
                 sh """
-                kubectl set image deployment/${K8S_DEPLOYMENT} java-app-container=${FULL_IMAGE}
-                kubectl rollout status deployment/${K8S_DEPLOYMENT} --timeout=5m
-                kubectl get svc ${K8S_SERVICE}
+                cp deployment/deployment.yaml deployment/deployment-temp.yaml
+                sed -i "s|REPLACE_IMAGE|${FULL_IMAGE}|g" deployment/deployment-temp.yaml
+
+                kubectl apply -f deployment/deployment-temp.yaml || true
+                kubectl apply -f deployment/service.yaml || true
                 """
             }
         }
