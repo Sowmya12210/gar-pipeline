@@ -1,0 +1,59 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Enter Artifact Registry Image Tag to Deploy')
+    }
+
+    environment {
+        PROJECT_ID     = "fluted-factor-438905-d2"
+        REGION         = "us-west1"
+        REPO           = "java-hello-repo"
+        IMAGE_NAME     = "javaapplication"
+        REGISTRY_URL   = "${REGION}-docker.pkg.dev"
+        FULL_IMAGE     = "${REGISTRY_URL}/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
+        CLUSTER_NAME   = "jenkins-deploy-1"
+        K8S_DEPLOYMENT = "java-app-deployment"
+        K8S_SERVICE    = "java-app-service"
+    }
+
+    stages {
+
+        stage('Auth & Connect to GKE') {
+            steps {
+                withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                    sh """
+                    gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                    gcloud container clusters get-credentials ${CLUSTER_NAME} --region ${REGION} --project ${PROJECT_ID}
+                    """
+                }
+            }
+        }
+
+        stage('Update Kubernetes Deployment') {
+            steps {
+                script {
+                    echo "Deploying Image: ${FULL_IMAGE}"
+                }
+
+                sh """
+                cp deployment/deployment.yaml deployment/deployment-temp.yaml
+                sed -i "s|REPLACE_IMAGE|${FULL_IMAGE}|g" deployment/deployment-temp.yaml
+
+                kubectl apply -f deployment/deployment-temp.yaml || true
+                kubectl apply -f deployment/service.yaml || true
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo " Deployment Successful!"
+        }
+        failure {
+            echo " Deployment Failed! Rolling back..."
+            sh "kubectl rollout undo deployment/${K8S_DEPLOYMENT}"
+        }
+    }
+}
