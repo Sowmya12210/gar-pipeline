@@ -22,7 +22,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/Sowmya12210/gar-pipeline.git'
+                git branch: 'feature-branch', url: 'https://github.com/Sowmya12210/gar-pipeline.git'
             }
         }
 
