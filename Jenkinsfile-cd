@@ -15,6 +15,7 @@ pipeline {
         CLUSTER_NAME   = "jenkins-deploy-1"
         K8S_DEPLOYMENT = "java-app-deployment"
         K8S_SERVICE    = "java-app-service"
+        ZONE           =  "us-west1-a"
     }
 
     stages {
@@ -24,7 +25,7 @@ pipeline {
                 withCredentials([file(credentialsId: 'gcp-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
                     sh """
                     gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-                    gcloud container clusters get-credentials ${CLUSTER_NAME} --region ${REGION} --project ${PROJECT_ID}
+                    gcloud container clusters get-credentials ${CLUSTER_NAME} --zone ${ZONE} --project ${PROJECT_ID}
                     """
                 }
             }
