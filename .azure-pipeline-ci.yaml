@@ -28,22 +28,23 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
+        if ! command -v gcloud &> /dev/null; then
           echo "Installing Google Cloud SDK..."
           sudo apt-get update -y
           sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
           echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
           curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
           sudo apt-get update -y && sudo apt-get install -y google-cloud-cli
-
+        else
+            echo "✅ gcloud already installed."
+        fi
     # ✅ 3. Authenticate to GCP and Configure Docker
     - task: Bash@3
       displayName: "Authenticate to GCP and Configure Docker"
       inputs:
         targetType: 'inline'
         script: |
-          echo "Activating GCP service account..."
           gcloud auth activate-service-account --key-file=$(gcpKey.secureFilePath)
-          echo "Configuring Docker to use GCP Artifact Registry..."
           gcloud auth configure-docker $(REGISTRY_URL) -q
 
     # ✅ 4. Build Docker Image
