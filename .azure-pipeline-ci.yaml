@@ -18,7 +18,6 @@ stages:
   jobs:
   - job: BuildPushJob
     steps:
-    # ✅ Download GCP Key
     - task: DownloadSecureFile@1
       name: gcpKey
       inputs:
@@ -36,9 +35,8 @@ stages:
             curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
             sudo apt-get update -y && sudo apt-get install -y google-cloud-cli
           else
-            echo "✅ gcloud already installed."
+            echo " gcloud already installed."
           fi
-    # ✅ 3. Authenticate to GCP and Configure Docker
     - task: Bash@3
       displayName: "Authenticate to GCP and Configure Docker"
       inputs:
@@ -46,8 +44,6 @@ stages:
         script: |
           gcloud auth activate-service-account --key-file=$(gcpKey.secureFilePath)
           gcloud auth configure-docker $(REGISTRY_URL) -q
-
-    # ✅ 4. Build Docker Image
     - task: Bash@3
       displayName: "Build Docker Image"
       inputs:
@@ -56,7 +52,6 @@ stages:
           echo "Building image: $(FULL_IMAGE)"
           docker build -t $(FULL_IMAGE) .
 
-    # ✅ 5. Push Docker Image
     - task: Bash@3
       displayName: "Push Docker Image"
       inputs:
