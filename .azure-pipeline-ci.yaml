@@ -1,7 +1,7 @@
 # CI Pipeline - Build & Push Docker Image to GCP Artifact Registry
 
 trigger:
-- main   # triggers when you push to main branch
+- feature-branch   # triggers when you push to main branch
 
 pool:
   vmImage: 'ubuntu-latest'
