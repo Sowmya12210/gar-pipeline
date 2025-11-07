@@ -1,0 +1,72 @@
+trigger: none   
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- group: azure-group   
+- name: IMAGE_TAG
+  value: 'latest'
+- name: FULL_IMAGE
+  value: '$(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(REPO)/$(IMAGE_NAME):$(IMAGE_TAG)'
+
+stages:
+- stage: DeployToGKE
+  displayName: "Deploy to GKE"
+  jobs:
+  - job: DeployJob
+    displayName: "Authenticate, Connect, and Deploy"
+    steps:
+
+    - task: DownloadSecureFile@1
+      name: gcpKey
+      inputs:
+        secureFile: 'gcp-key.json'
+
+    - task: Bash@3
+      displayName: "Install Google Cloud SDK"
+      inputs:
+        targetType: 'inline'
+        script: |
+          if ! command -v gcloud &> /dev/null; then
+            echo "Installing Google Cloud SDK..."
+            sudo apt-get update -y
+            sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+            sudo apt-get update -y && sudo apt-get install -y google-cloud-cli
+          else
+            echo "gcloud already installed."
+          fi
+
+    - task: Bash@3
+      displayName: "Authenticate to GCP"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Activating GCP Service Account..."
+          gcloud auth activate-service-account --key-file=$(gcpKey.secureFilePath)
+          gcloud config set project $(PROJECT_ID)
+          gcloud container clusters get-credentials $(CLUSTER_NAME) --region $(REGION) --project $(PROJECT_ID)
+
+    - task: Bash@3
+      displayName: "Apply Kubernetes Deployment & Service"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Deploying image: $(FULL_IMAGE)"
+          cp deployment/deployment.yaml deployment/deployment-temp.yaml
+          sed -i "s|REPLACE_IMAGE|$(FULL_IMAGE)|g" deployment/deployment-temp.yaml
+
+          kubectl apply -f deployment/deployment-temp.yaml || true
+          kubectl apply -f deployment/service.yaml || true
+
+  
+    - task: Bash@3
+      displayName: "Rollback if Deployment Fails"
+      condition: failed()
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "" Deployment failed! Rolling back..."
+          kubectl rollout undo deployment/$(K8S_DEPLOYMENT)
