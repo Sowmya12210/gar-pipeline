@@ -1,0 +1,68 @@
+# CI Pipeline - Build & Push Docker Image to GCP Artifact Registry
+
+trigger:
+- main   # triggers when you push to main branch
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  PROJECT_ID: 'fluted-factor-438905-d2'
+  REGION: 'us-west1'
+  REPO: 'azure-repo'
+  IMAGE_NAME: 'javaapplication'
+  REGISTRY_URL: 'us-west1-docker.pkg.dev'
+  FULL_IMAGE: '$(REGISTRY_URL)/$(PROJECT_ID)/$(REPO)/$(IMAGE_NAME):$(Build.BuildId)'
+
+stages:
+- stage: Build
+  displayName: "Build & Push Docker Image"
+  jobs:
+  - job: BuildJob
+    displayName: "Build Docker Image and Push to Artifact Registry"
+    steps:
+    - task: Bash@3
+      displayName: "Install gcloud CLI"
+      inputs:
+        targetType: 'inline'
+        script: |
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+          echo "Installing Google Cloud SDK..."
+          echo "$GCP_KEY" > gcp-key.json
+          curl -sSL https://sdk.cloud.google.com | bash > /dev/null
+          source $HOME/.bashrc
+
+    - task: Bash@3
+      displayName: "Authenticate to GCP and Configure Docker"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Authenticating to GCP..."
+          echo "$GCP_KEY" > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud auth configure-docker $(REGISTRY_URL) -q
+
+    - task: Bash@3
+      displayName: "Build Docker Image"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Building Docker image: $(FULL_IMAGE)"
+          docker build -t $(FULL_IMAGE) .
+
+    - task: Bash@3
+      displayName: "Push Docker Image"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Pushing image: $(FULL_IMAGE)"
+          docker push $(FULL_IMAGE)
+
+    # - task: Bash@3
+    #   displayName: "Trigger CD Pipeline"
+    #   inputs:
+    #     targetType: 'inline'
+    #     script: |
+    #       echo "Triggering CD Pipeline..."
+    #       az pipelines run --name "CD-Pipeline-Name" --parameters imageTag=$(Build.BuildId)
