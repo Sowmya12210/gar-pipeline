@@ -11,7 +11,10 @@ variables:
 - name: IMAGE_TAG
   value: $(Build.BuildId)
 - name: FULL_IMAGE
-  value: '$(REGISTRY_URL)/$(PROJECT_ID)/$(REPO)/$(IMAGE_NAME):$(IMAGE_TAG)'
+  value: '$(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(REPO)/$(IMAGE_NAME):$(IMAGE_TAG)'
+- name: LATEST_IMAGE
+  value: '$(REGISTRY_URL)/$(PROJECT_ID)/$(REPO)/$(IMAGE_NAME):latest'
+
 
 stages:
 - stage: BuildAndPush
@@ -35,7 +38,7 @@ stages:
             curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
             sudo apt-get update -y && sudo apt-get install -y google-cloud-cli
           else
-            echo " gcloud already installed."
+            echo "gcloud already installed."
           fi
     - task: Bash@3
       displayName: "Authenticate to GCP and Configure Docker"
@@ -44,6 +47,7 @@ stages:
         script: |
           gcloud auth activate-service-account --key-file=$(gcpKey.secureFilePath)
           gcloud auth configure-docker $(REGISTRY_URL) -q
+
     - task: Bash@3
       displayName: "Build Docker Image"
       inputs:
@@ -57,14 +61,17 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
+          docker tag $(FULL_IMAGE) $(LATEST_IMAGE)
           echo "Pushing image: $(FULL_IMAGE)"
           docker push $(FULL_IMAGE)
+          docker push $(LATEST_IMAGE)
 
 
-    # - task: Bash@3
-    #   displayName: "Trigger CD Pipeline"
-    #   inputs:
-    #     targetType: 'inline'
-    #     script: |
-    #       echo "Triggering CD Pipeline..."
-    #       az pipelines run --name "CD-Pipeline-Name" --parameters imageTag=$(Build.BuildId)
+    #- task: Bash@3
+    #  displayName: "Trigger CD Pipeline"
+    #  inputs:
+    #    targetType: 'inline'
+    #    script: |
+    #      echo "Triggering CD Pipeline..."
+    #      echo "$(AZURE_DEVOPS_PAT)" | az devops login --organization https://dev.azure.com/SailsTraining/DevopsIntern2 --detect false
+    #      az pipelines run --name "azure-pipeline-cd" --parameters imageTag=$(Build.BuildId)
