@@ -12,7 +12,7 @@ pipeline {
         IMAGE_NAME     = "javaapplication"
         REGISTRY_URL   = "${REGION}-docker.pkg.dev"
         FULL_IMAGE     = "${REGISTRY_URL}/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
-        CLUSTER_NAME   = "jenkins-deploy-1"
+        CLUSTER_NAME   = "azure-deploy-1"
         K8S_DEPLOYMENT = "java-app-deployment"
         K8S_SERVICE    = "java-app-service"
     }

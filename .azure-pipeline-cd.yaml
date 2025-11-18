@@ -1,0 +1,103 @@
+trigger: none   
+
+pool:
+  vmImage: 'ubuntu-latest'
+resources:
+  pipelines:
+    - pipeline: ci_pipeline
+      source: gar-pipeline-ci   # name of your CI pipeline
+      trigger: true 
+
+variables:
+- group: azure-group   
+- name: IMAGE_TAG
+  value: 'latest'
+- name: FULL_IMAGE
+  value: '$(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(REPO)/$(IMAGE_NAME):$(IMAGE_TAG)'
+
+stages:
+- stage: DeployToGKE
+  displayName: "Deploy to GKE"
+  jobs:
+  - job: DeployJob
+    displayName: "Authenticate, Connect, and Deploy"
+    steps:
+
+    - task: DownloadSecureFile@1
+      name: gcpKey
+      inputs:
+        secureFile: 'gcp-key.json'
+
+    - task: Bash@3
+      displayName: "Install Google Cloud SDK"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo " Setting up Google Cloud SDK repository with the new key..."
+          sudo apt-get update -y
+          sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+
+          # Remove any old key to prevent conflicts
+          sudo rm -f /usr/share/keyrings/cloud.google.gpg
+
+          # Add the new Google Cloud public key securely
+          curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+
+          # Add the repo using the signed key
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+
+          # Install packages
+          sudo apt-get update -y
+          sudo apt-get install -y google-cloud-cli kubectl google-cloud-sdk-gke-gcloud-auth-plugin
+
+          echo " Checking installations..."
+          gcloud version
+          kubectl version --client
+
+          echo " Finding and linking gke-gcloud-auth-plugin..."
+          PLUGIN_PATH=$(find /usr/lib/google-cloud-sdk -name gke-gcloud-auth-plugin | head -n 1 || true)
+          if [ -f "$PLUGIN_PATH" ]; then
+            sudo ln -sf "$PLUGIN_PATH" /usr/local/bin/gke-gcloud-auth-plugin
+            echo "Plugin linked to /usr/local/bin/"
+          else
+            echo " Plugin binary not found! Trying reinstall..."
+            sudo apt-get install --reinstall -y google-cloud-sdk-gke-gcloud-auth-plugin
+            sudo find /usr -name gke-gcloud-auth-plugin
+          fi
+
+          echo "Final check:"
+          which gke-gcloud-auth-plugin || echo " Plugin still not found!"
+    - task: Bash@3
+      displayName: "Authenticate to GCP"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Activating GCP Service Account..."
+          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+
+          gcloud auth activate-service-account --key-file=$(gcpKey.secureFilePath)
+          gcloud config set project $(PROJECT_ID)
+          gcloud container clusters get-credentials $(CLUSTER_NAME) --region $(REGION) --project $(PROJECT_ID)
+
+    - task: Bash@3
+      displayName: "Apply Kubernetes Deployment & Service"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Deploying image: $(FULL_IMAGE)"
+          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+          cp deployment/deployment.yaml deployment/deployment-temp.yaml
+          sed -i "s|REPLACE_IMAGE|$(FULL_IMAGE)|g" deployment/deployment-temp.yaml
+
+          kubectl apply -f deployment/deployment-temp.yaml || true
+          kubectl apply -f deployment/service.yaml || true
+
+  
+    - task: Bash@3
+      displayName: "Rollback if Deployment Fails"
+      condition: failed()
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo " Deployment failed! Rolling back..."
+          kubectl rollout undo deployment/$(K8S_DEPLOYMENT)

@@ -1,0 +1,77 @@
+# CI Pipeline - Build & Push Docker Image to GCP Artifact Registry
+
+trigger:
+- feature-branch   # triggers when you push to main branch
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+- group: azure-group
+- name: IMAGE_TAG
+  value: $(Build.BuildId)
+- name: FULL_IMAGE
+  value: '$(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(REPO)/$(IMAGE_NAME):$(IMAGE_TAG)'
+- name: LATEST_IMAGE
+  value: '$(REGISTRY_URL)/$(PROJECT_ID)/$(REPO)/$(IMAGE_NAME):latest'
+
+
+stages:
+- stage: BuildAndPush
+  jobs:
+  - job: BuildPushJob
+    steps:
+    - task: DownloadSecureFile@1
+      name: gcpKey
+      inputs:
+        secureFile: 'gcp-key.json'
+    - task: Bash@3
+      displayName: "Install gcloud CLI"
+      inputs:
+        targetType: 'inline'
+        script: |
+          if ! command -v gcloud &> /dev/null; then
+            echo "Installing Google Cloud SDK..."
+            sudo apt-get update -y
+            sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+            sudo apt-get update -y && sudo apt-get install -y google-cloud-cli
+          else
+            echo "gcloud already installed."
+          fi
+    - task: Bash@3
+      displayName: "Authenticate to GCP and Configure Docker"
+      inputs:
+        targetType: 'inline'
+        script: |
+          gcloud auth activate-service-account --key-file=$(gcpKey.secureFilePath)
+          gcloud auth configure-docker $(REGISTRY_URL) -q
+
+    - task: Bash@3
+      displayName: "Build Docker Image"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Building image: $(FULL_IMAGE)"
+          docker build -t $(FULL_IMAGE) .
+
+    - task: Bash@3
+      displayName: "Push Docker Image"
+      inputs:
+        targetType: 'inline'
+        script: |
+          docker tag $(FULL_IMAGE) $(LATEST_IMAGE)
+          echo "Pushing image: $(FULL_IMAGE)"
+          docker push $(FULL_IMAGE)
+          docker push $(LATEST_IMAGE)
+
+
+    #- task: Bash@3
+    #  displayName: "Trigger CD Pipeline"
+    #  inputs:
+    #    targetType: 'inline'
+    #    script: |
+    #      echo "Triggering CD Pipeline..."
+    #      echo "$(AZURE_DEVOPS_PAT)" | az devops login --organization https://dev.azure.com/SailsTraining/DevopsIntern2 --detect false
+    #      az pipelines run --name "azure-pipeline-cd" --parameters imageTag=$(Build.BuildId)
